@@ -1,0 +1,327 @@
+# InkWave Publishing Data Warehouse - Environment Setup Guide
+
+## Overview
+This guide provides instructions for setting up the development and production environments for the InkWave Publishing Data Warehouse.
+
+## Development Environment Setup
+
+### 1. Python Environment
+
+#### 1.1 Install Python
+Ensure Python 3.8 or higher is installed:
+```bash
+python --version
+# Should return Python 3.8.x or higher
+```
+
+#### 1.2 Create Virtual Environment
+```bash
+# Navigate to the project root directory
+cd /path/to/inkwave_warehouse
+
+# Create virtual environment
+python -m venv inkwave_env
+
+# Activate virtual environment
+# On Windows:
+inkwave_env\Scripts\activate
+# On Linux/Mac:
+source inkwave_env/bin/activate
+```
+
+#### 1.3 Install Python Dependencies
+```bash
+# Install required packages
+pip install -r documentation/requirements.txt
+
+# Verify installations
+pip list
+```
+
+### 2. Oracle Database Setup
+
+#### 2.1 Install Oracle Instant Client
+1. Download Oracle Instant Client Basic and SDK packages from Oracle website
+2. Extract to a directory (e.g., `/opt/oracle/instantclient_19_8`)
+3. Set environment variables:
+
+**Linux/Mac:**
+```bash
+export ORACLE_HOME=/opt/oracle/instantclient_19_8
+export LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH
+export PATH=$ORACLE_HOME:$PATH
+```
+
+**Windows:**
+```cmd
+set ORACLE_HOME=C:\oracle\instantclient_19_8
+set PATH=%ORACLE_HOME%;%PATH%
+```
+
+#### 2.2 Test Oracle Connectivity
+```bash
+# Test with Python
+python -c "import cx_Oracle; print('cx_Oracle imported successfully')"
+```
+
+### 3. Database User Setup
+
+#### 3.1 Create Database User
+Connect to Oracle as DBA and run:
+```sql
+CREATE USER inkwave_etl IDENTIFIED BY your_secure_password;
+GRANT CONNECT, RESOURCE TO inkwave_etl;
+GRANT CREATE VIEW, CREATE MATERIALIZED VIEW TO inkwave_etl;
+ALTER USER inkwave_etl QUOTA UNLIMITED ON USERS;
+```
+
+#### 3.2 Test Database Connection
+```python
+# Test connection with Python
+import cx_Oracle
+
+dsn = cx_Oracle.makedsn("localhost", 1521, service_name="your_service")
+connection = cx_Oracle.connect(user="inkwave_etl", password="your_password", dsn=dsn)
+print("Database connection successful")
+connection.close()
+```
+
+## Production Environment Setup
+
+### 1. Server Requirements
+- Oracle Database 19c or higher
+- 16GB RAM minimum
+- 50GB disk space minimum
+- Network connectivity between application and database servers
+
+### 2. Application Server Setup
+
+#### 2.1 Install Python and Dependencies
+```bash
+# Install Python 3.9
+sudo yum install python39 python39-pip  # RedHat/CentOS
+# or
+sudo apt-get install python3.9 python3.9-pip  # Ubuntu/Debian
+
+# Create virtual environment
+python3.9 -m venv /opt/inkwave/venv
+source /opt/inkwave/venv/bin/activate
+
+# Install dependencies
+pip install -r /opt/inkwave/documentation/requirements.txt
+```
+
+#### 2.2 Configure Environment Variables
+Create `/etc/systemd/system/inkwave.service`:
+```ini
+[Unit]
+Description=InkWave ETL Service
+After=network.target
+
+[Service]
+Type=simple
+User=inkwave
+WorkingDirectory=/opt/inkwave
+Environment=ORACLE_HOME=/opt/oracle/instantclient_19_8
+Environment=LD_LIBRARY_PATH=/opt/oracle/instantclient_19_8
+ExecStart=/opt/inkwave/venv/bin/python /opt/inkwave/python/src/main_etl.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 3. Database Production Setup
+
+#### 3.1 Create Production Tablespace
+```sql
+CREATE TABLESPACE INKWAVE_DATA
+DATAFILE '/opt/oracle/oradata/inkwave_data.dbf'
+SIZE 10G AUTOEXTEND ON NEXT 1G MAXSIZE 50G;
+
+CREATE TEMPORARY TABLESPACE INKWAVE_TEMP
+TEMPFILE '/opt/oracle/oradata/inkwave_temp.dbf'
+SIZE 5G AUTOEXTEND ON NEXT 1G MAXSIZE 20G;
+```
+
+#### 3.2 Create Production User
+```sql
+CREATE USER inkwave_prod IDENTIFIED BY your_secure_password
+DEFAULT TABLESPACE INKWAVE_DATA
+TEMPORARY TABLESPACE INKWAVE_TEMP;
+
+GRANT CONNECT, RESOURCE TO inkwave_prod;
+GRANT CREATE VIEW, CREATE MATERIALIZED VIEW TO inkwave_prod;
+GRANT CREATE JOB TO inkwave_prod;
+ALTER USER inkwave_prod QUOTA UNLIMITED ON INKWAVE_DATA;
+```
+
+#### 3.3 Set Up Monitoring
+Create monitoring user:
+```sql
+CREATE USER inkwave_monitor IDENTIFIED BY monitor_password;
+GRANT SELECT ANY DICTIONARY TO inkwave_monitor;
+GRANT SELECT ON GV_$SESSION TO inkwave_monitor;
+GRANT SELECT ON GV_$PROCESS TO inkwave_monitor;
+GRANT SELECT ON GV_$SQL TO inkwave_monitor;
+```
+
+## Configuration Management
+
+### 1. Environment-Specific Configuration
+Create separate configuration files for each environment:
+
+**config/dev_config.py:**
+```python
+ORACLE_CONFIG = {
+    'user': 'inkwave_etl',
+    'password': 'dev_password',
+    'host': 'localhost',
+    'port': 1521,
+    'service_name': 'inkwave_dev',
+    'pool_min': 2,
+    'pool_max': 5,
+    'pool_increment': 1
+}
+```
+
+**config/prod_config.py:**
+```python
+ORACLE_CONFIG = {
+    'user': 'inkwave_prod',
+    'password': 'prod_password',
+    'host': 'prod-db.company.com',
+    'port': 1521,
+    'service_name': 'inkwave_prod',
+    'pool_min': 5,
+    'pool_max': 20,
+    'pool_increment': 2
+}
+```
+
+### 2. Secrets Management
+Use environment variables for sensitive information:
+
+**Linux/Mac:**
+```bash
+export INKWAVE_DB_USER=inkwave_prod
+export INKWAVE_DB_PASSWORD=your_secure_password
+export INKWAVE_DB_HOST=prod-db.company.com
+```
+
+**Windows:**
+```cmd
+set INKWAVE_DB_USER=inkwave_prod
+set INKWAVE_DB_PASSWORD=your_secure_password
+set INKWAVE_DB_HOST=prod-db.company.com
+```
+
+Update config.py to read from environment variables:
+```python
+import os
+
+ORACLE_CONFIG = {
+    'user': os.getenv('INKWAVE_DB_USER', 'inkwave_etl'),
+    'password': os.getenv('INKWAVE_DB_PASSWORD', 'default_password'),
+    'host': os.getenv('INKWAVE_DB_HOST', 'localhost'),
+    'port': int(os.getenv('INKWAVE_DB_PORT', '1521')),
+    'service_name': os.getenv('INKWAVE_DB_SERVICE', 'inkwave_dw'),
+    # ... other settings
+}
+```
+
+## Security Considerations
+
+### 1. Database Security
+- Use strong passwords for all database accounts
+- Limit database user privileges to minimum required
+- Enable database auditing
+- Use encrypted connections (TLS/SSL)
+
+### 2. Application Security
+- Store secrets in environment variables or secure vault
+- Validate all inputs to prevent SQL injection
+- Use parameterized queries
+- Implement proper error handling without exposing sensitive information
+
+### 3. Network Security
+- Restrict database access to application servers only
+- Use firewalls to control access
+- Encrypt data in transit
+- Regular security scanning
+
+## Backup and Recovery
+
+### 1. Database Backup Strategy
+- Daily full backups
+- Hourly incremental backups
+- Weekly archive backups
+- Test restore procedures regularly
+
+### 2. Application Backup Strategy
+- Version control all code
+- Backup configuration files separately
+- Document recovery procedures
+- Regular disaster recovery drills
+
+## Performance Tuning
+
+### 1. Database Tuning
+- Monitor tablespace usage
+- Regular statistics gathering
+- Optimize frequently executed queries
+- Monitor connection pool usage
+
+### 2. Application Tuning
+- Profile Python code for bottlenecks
+- Optimize data processing algorithms
+- Use appropriate batch sizes
+- Monitor memory usage
+
+## Monitoring and Alerting
+
+### 1. Database Monitoring
+- Table space usage alerts
+- Performance metrics collection
+- Long-running query alerts
+- Connection pool monitoring
+
+### 2. Application Monitoring
+- ETL job success/failure tracking
+- Performance metrics collection
+- Error rate monitoring
+- Resource utilization tracking
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+#### Issue: cx_Oracle Import Error
+**Solution:** Ensure Oracle Instant Client is properly installed and environment variables are set.
+
+#### Issue: Connection Pool Exhaustion
+**Solution:** Increase pool size in configuration or optimize connection usage.
+
+#### Issue: Slow Query Performance
+**Solution:** Refresh materialized views and check execution plans.
+
+#### Issue: Data Quality Validation Failures
+**Solution:** Review source data and update validation rules as needed.
+
+## Support Contacts
+
+### Development Team
+- Lead Developer: data.engineering@inkwave.com
+- Database Administrator: dba@inkwave.com
+- System Administrator: sysadmin@inkwave.com
+
+### Vendor Support
+- Oracle Support: support.oracle.com
+- Python Package Issues: GitHub repositories for respective packages
+
+## Version Information
+- **Guide Version**: 1.0.0
+- **Last Updated**: December 8, 2025
+- **Compatible With**: InkWave Data Warehouse v1.0.0
+
+This environment setup guide ensures a consistent and secure deployment of the InkWave Publishing Data Warehouse across development, testing, and production environments.

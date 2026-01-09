@@ -33,6 +33,9 @@ The InkWave Publishing Data Warehouse is a comprehensive business intelligence s
 
 ### Fact Tables
 
+
+
+
 #### FACT_SALES
 - **Purpose**: Transaction-level sales fact table with profitability metrics
 - **Partitioning**: Range partitioned by time_key with monthly intervals

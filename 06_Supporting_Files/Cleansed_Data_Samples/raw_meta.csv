@@ -1,0 +1,4 @@
+station/id,station/name,station/region,station/mgr,station/address,vendor/id,vendor/name,vendor/score,vendor/services/0/type,vendor/services/0/qual,vendor/services/1/type,vendor/services/1/qual,publication/ed,publication/title,publication/cat,publication/lang,publication/author,author/id,author/first_name,author/last_name,author/country,author/primary_genre
+DC001,Port Samchester DC,Flintshire,MGR001,"433 Timothy springs, New Maryton, E3 8ZA",V001,Vendor V001,8.2,Paper,A,Ink,B,E121,Grass-roots coherent data-warehouse,Science,EN,A001,A001,Tom,Warner,UK,Fiction
+DC002,Sandrastad DC,Leicestershire,MGR002,"59 Gough stream, Wilkinsonfurt, M9 9HD",V002,Vendor V002,8.5,Paper,A,Ink,B,E122,Multi-layered heuristic database,Arts,EN,A002,A002,Vanessa,Phillips,UK,Non‑Fiction
+DC003,East Chelsea DC,Eilean Siar,MGR003,"327 Dixon route, Lake Victor, L0 6LD",V003,Vendor V003,8.7,Paper,A,Ink,B,E123,Fundamental value-added paradigm,Arts,EN,A003,A003,Anne,Bartlett,UK,Poetry

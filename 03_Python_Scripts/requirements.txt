@@ -1,0 +1,28 @@
+# InkWave Publishing Data Warehouse - Python Dependencies
+# Version: 1.0.0
+# Date: 2025-12-08
+
+# Core data processing library
+pandas>=1.5.0
+
+# Oracle database connectivity
+cx_Oracle>=8.3.0
+# Alternative for newer Oracle clients:
+# oracledb>=1.0.0
+
+# Logging and configuration
+PyYAML>=6.0
+
+# System utilities
+psutil>=5.9.0
+
+# Development and testing
+pytest>=7.2.0
+pytest-cov>=4.0.0
+
+# Code quality
+flake8>=6.0.0
+black>=22.0.0
+
+# Documentation generation (if needed)
+sphinx>=5.0.0
